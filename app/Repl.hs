@@ -5,7 +5,7 @@ module Repl
 import Lib
 import qualified Parser as P
 
-import Text.Parsec (parse)
+import System.IO
 import Text.Printf
 
 prettyPrint :: WorkWeek -> String
@@ -23,30 +23,26 @@ prettyPrint (WorkWeek s m t w) =
     ++ printf "| Night     | %s | %s | %s | %s |\n" n1 n2 n3 n4
 
 repl wks = do
-  putStrLn "Calculating..."
-  print $ length wks
+  printf "Number of possible solutions: %d\n" (length wks)
   print $ head wks
   writeFile "schedule.md" (prettyPrint $ head wks)
-  putStrLn "Any conditions?"
-  putStr "syntax: <day of the week> <shift name/\"free\"> <name>\n> "
+  putStr "Any conditions?\n> "
+  hFlush stdout
   response <- getLine
   if response == "done"
     then 
-      writeFile "schedule.md" (prettyPrint $ head wks)
+      return ()
     else
-      let (strDay : strShift : employee : rest) = words response
-          notMaybe = if rest == ["not"] then not else id
-          shift = fromRight $ parse P.shift "" strShift
-          day = fromRight $ parse P.day "" strDay
-          newWks = filter (notMaybe . applyCond day shift employee) wks
-      in
-      if null newWks
-        then putStrLn "Impossible. Try again or use a different solution." >>
-             repl wks
-        else repl newWks
-  where
-    applyCond day Nothing employee wk = employee `isFreeOn` day wk
-    applyCond day (Just shift) employee wk = shift (day wk) == employee
-
-    -- quick & dirty temp fix
-    fromRight (Right x) = x
+      case P.parseComm response of
+      Just cons ->
+        let newWks = filter cons wks in 
+        if null newWks
+          then do
+            putStrLn "Impossible. Try again or use a different solution."
+            repl wks
+          else do
+            putStrLn "Calculating..."
+            repl newWks
+      Nothing -> do
+        putStrLn "Error: Invalid command."
+        repl wks

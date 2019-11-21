@@ -10,20 +10,17 @@ hasRest (WorkWeek s m t w) =
   night m `isFreeOn` t &&
   night t `isFreeOn` w
 
+worksLate :: Employee -> WorkDay -> Bool
+worksLate employee d = evening d == employee || night d == employee
+
 twoLateShifts :: Constraint
-twoLateShifts (WorkWeek s m t w) = all (<=2) . map length $ group $ concatMap (\d -> [evening d, night d]) [s,m,t,w]
+twoLateShifts (WorkWeek s m t w) = all (<=2) . map length . group . sort $ concatMap (\d -> [evening d, night d]) [s,m,t,w]
 
 prevSabCons :: Employee -> Constraint
-prevSabCons employee (WorkWeek s m t w) = length (filter worksLate [s,m,t,w]) <= 1 && employee `isFreeOn` s
-  where
-    worksLate d = evening d == employee || night d == employee
+prevSabCons employee (WorkWeek s m t w) = length (filter (worksLate employee) [s,m,t,w]) <= 1 && employee `isFreeOn` s
   
 nextSabCons :: Employee -> Constraint
-nextSabCons employee (WorkWeek s m t w) = not (any worksLate [s,m,t,w]) && employee `isFreeOn` w
-  where
-    worksLate d = evening d == employee || night d == employee
+nextSabCons employee (WorkWeek s m t w) = not (any (worksLate employee) [s,m,t,w]) && employee `isFreeOn` w
 
 wedNightCons :: Employee -> Constraint
-wedNightCons employee (WorkWeek s m t w) = night w == employee && not (any worksLate [s,m,t])
-  where
-    worksLate d = evening d == employee || night d == employee
+wedNightCons employee (WorkWeek s m t w) = night w == employee && not (any (worksLate employee) [s,m,t])
